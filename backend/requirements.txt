@@ -1,0 +1,31 @@
+fastapi>=0.111.0
+
+uvicorn[standard]>=0.29.0
+
+websockets>=12.0
+
+openai-whisper>=20231117
+
+numpy>=1.24.0
+
+soundfile>=0.12.1
+
+torch>=2.2.0
+
+torchaudio>=2.2.0
+
+# Kokoro-82M TTS (lighter than Chatterbox). Requires espeak-ng on PATH for multilingual G2P.
+kokoro>=0.9.4
+
+python-multipart>=0.0.9
+
+# NLLB translation (after Qwen ASR)
+
+transformers>=4.45.0
+
+accelerate>=0.30.0
+
+# Qwen3-ASR: official pkg (HF transformers cannot load model_type qwen3_asr alone)
+
+qwen-asr>=0.0.6
+

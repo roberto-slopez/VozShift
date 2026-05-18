@@ -1,0 +1,68 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments (name yours consistently; common choices below)
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.egg
+
+# ── Tools & tests ───────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.hypothesis/
+
+# ── Environment & secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── IDE / OS ───────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Jupyter (if used for experiments) ───────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Local Python version (pyenv, etc.) ───────────────────────────────────────
+.python-version
+
+# ── User-uploaded / legacy voice samples (see FastAPI /audio-prompts) ─────────
+audio/*
+!audio/.gitkeep
+
+# ── Optional: HF / torch cache if redirected into the repo ────────────────────
+.cache/
+checkpoints/
+models/
