@@ -138,3 +138,7 @@ This project is released under the [MIT License](LICENSE).
 ## Code of conduct
 
 Participation is governed by the [Contributor Covenant](CODE_OF_CONDUCT.md). Please read it before opening issues or pull requests.
+
+## Documentation site (GitHub Pages)
+
+The README is published as a static site with [GitHub Actions](.github/workflows/pages.yml). In the repository go to **Settings → Pages → Build and deployment**, choose **GitHub Actions** as the source, then push to `main` (or run the workflow manually). The site URL appears under **Settings → Pages** and in the workflow summary.

@@ -1,3 +1,6 @@
 # Backend ignores live in backend/.gitignore
 frontend/node_modules/*
 backend/audio/voice_clean.wav
+
+# GitHub Pages local build output
+_site/
