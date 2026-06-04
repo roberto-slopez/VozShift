@@ -1,5 +1,108 @@
 @import "tailwindcss";
 
+/* ── Skeuomorphic Design Token System ────────────────────────────────────── */
+/* Light theme: true white parchment with raised/embossed surfaces            */
+/* Dark theme: near-black with deep inset / engraved surfaces                 */
+
+:root {
+  /* ── Surfaces ── */
+  --bg-base:        #e8e8ec;
+  --bg-raised:      #f0f0f4;
+  --bg-sunken:      #d4d4d8;
+  --bg-card:        #f5f5f8;
+  --bg-overlay:     rgba(232, 232, 236, 0.96);
+
+  /* ── Text ── */
+  --text-primary:   #18181b;
+  --text-secondary: #52525b;
+  --text-muted:     #a1a1aa;
+  --text-inverse:   #ffffff;
+
+  /* ── Borders ── */
+  --border-outer:   rgba(0, 0, 0, 0.12);
+  --border-inner:   rgba(255, 255, 255, 0.85);
+  --border-focus:   #7c3aed;
+
+  /* ── Skeuomorphic shadows (raised/embossed) ── */
+  /* Outer bevel: top-left light, bottom-right dark */
+  --shadow-raised:
+    2px 2px 5px rgba(0, 0, 0, 0.18),
+    -1px -1px 3px rgba(255, 255, 255, 0.85);
+  /* Pressed / inset */
+  --shadow-inset:
+    inset 2px 2px 5px rgba(0, 0, 0, 0.15),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.75);
+  /* Card depth */
+  --shadow-card:
+    4px 4px 10px rgba(0, 0, 0, 0.12),
+    -2px -2px 6px rgba(255, 255, 255, 0.8);
+  /* Button active press */
+  --shadow-press:
+    inset 1px 1px 4px rgba(0, 0, 0, 0.2),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.5);
+
+  /* ── Brand / accent ── */
+  --accent:         #7c3aed;
+  --accent-light:   #a78bfa;
+  --accent-text:    #ffffff;
+  --accent-surface: rgba(124, 58, 237, 0.1);
+  --accent-border:  rgba(124, 58, 237, 0.35);
+
+  /* ── Status colors ── */
+  --color-sky:      #0ea5e9;
+  --color-emerald:  #10b981;
+  --color-amber:    #f59e0b;
+  --color-red:      #ef4444;
+  --color-violet:   #8b5cf6;
+}
+
+/* ── Dark theme overrides ────────────────────────────────────────────────── */
+.dark {
+  /* ── Surfaces (near-black, engraved feel) ── */
+  --bg-base:        #0a0a0f;
+  --bg-raised:      #111118;
+  --bg-sunken:      #060608;
+  --bg-card:        #141420;
+  --bg-overlay:     rgba(10, 10, 15, 0.97);
+
+  /* ── Text ── */
+  --text-primary:   #e4e4f0;
+  --text-secondary: #a8a8c0;
+  --text-muted:     #52526a;
+  --text-inverse:   #0a0a0f;
+
+  /* ── Borders ── */
+  --border-outer:   rgba(255, 255, 255, 0.06);
+  --border-inner:   rgba(255, 255, 255, 0.03);
+  --border-focus:   #a78bfa;
+
+  /* ── Skeuomorphic shadows (deep/engraved) ── */
+  --shadow-raised:
+    2px 2px 6px rgba(0, 0, 0, 0.7),
+    -1px -1px 2px rgba(255, 255, 255, 0.04);
+  --shadow-inset:
+    inset 2px 2px 6px rgba(0, 0, 0, 0.65),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.04);
+  --shadow-card:
+    4px 4px 14px rgba(0, 0, 0, 0.65),
+    -1px -1px 3px rgba(255, 255, 255, 0.03);
+  --shadow-press:
+    inset 2px 2px 6px rgba(0, 0, 0, 0.75),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.03);
+
+  /* ── Brand ── */
+  --accent:         #8b5cf6;
+  --accent-light:   #c4b5fd;
+  --accent-text:    #ffffff;
+  --accent-surface: rgba(139, 92, 246, 0.12);
+  --accent-border:  rgba(139, 92, 246, 0.35);
+}
+
+/* ── Tailwind v4 custom variant ──────────────────────────────────────────── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Base styles ─────────────────────────────────────────────────────────── */
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
@@ -12,17 +115,14 @@
   }
 
   body {
-    background-color: #0b0b10;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 58, 237, 0.12) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 110%, rgba(59, 130, 246, 0.07) 0%, transparent 55%);
-    background-attachment: fixed;
-    color: #e2e2e8;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
     font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.25s, color 0.25s;
   }
 
-  /* ── Custom scrollbar ──────────────────────────────────────────────────── */
+  /* ── Custom scrollbar ── */
   ::-webkit-scrollbar {
     width: 5px;
     height: 5px;
@@ -31,15 +131,44 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--border-outer);
     border-radius: 99px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(139, 92, 246, 0.35);
+    background: var(--accent-border);
   }
 }
 
-/* ── Animations ────────────────────────────────────────────────────────────── */
+/* ── Skeuomorphic utility classes ─────────────────────────────────────────── */
+
+/* Raised surface (embossed button/card) */
+.sku-raised {
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-raised);
+  border: 1px solid var(--border-outer);
+}
+
+/* Sunken / inset field (input, well) */
+.sku-inset {
+  background: var(--bg-sunken);
+  box-shadow: var(--shadow-inset);
+  border: 1px solid var(--border-outer);
+}
+
+/* Card surface */
+.sku-card {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-outer);
+}
+
+/* Active/pressed state */
+.sku-press {
+  box-shadow: var(--shadow-press) !important;
+  transform: translateY(1px);
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
 
 @keyframes ring-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
@@ -69,6 +198,11 @@
   100% { background-position:  200% center; }
 }
 
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5), var(--shadow-raised); }
+  50%       { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0), var(--shadow-raised); }
+}
+
 .animate-ring-pulse {
   animation: ring-pulse 1.2s ease-in-out infinite;
 }
@@ -90,4 +224,8 @@
 
 .animate-slide-in-right {
   animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-mic-pulse {
+  animation: mic-pulse 1.2s ease-in-out infinite;
 }

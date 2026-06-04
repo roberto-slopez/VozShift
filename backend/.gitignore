@@ -66,3 +66,9 @@ audio/*
 .cache/
 checkpoints/
 models/
+
+# ── XTTS-v2 model cache (coqui-tts downloads weights here on first run) ────────
+# Coqui TTS stores models in ~/.local/share/tts/ (Linux) or %LOCALAPPDATA%\tts\
+# If you redirect TTS_HOME= to somewhere inside the repo, add that path here too.
+tts_home/
+clone-venv/

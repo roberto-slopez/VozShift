@@ -7,10 +7,15 @@ State machine per connection:
   Any state → (disconnect) → closed
 
 Per-turn settings carried in the 'start' message:
-  engine          "whisper" | "qwen3-asr"         (default: "whisper")
-  sourceLang      ISO 639-1 source language code   (default: "es")
-  targetLang      ISO 639-1 target language code   (default: "en")
-  audioPromptPath (optional, ignored): legacy field; Kokoro uses preset voices only
+  engine               "whisper" | "qwen3-asr"          (default: "qwen3-asr")
+  sourceLang           ISO 639-1 source language code    (default: "es")
+  targetLang           ISO 639-1 target language code    (default: "en")
+  ttsEngine            "kokoro" | "xtts"                 (default: "kokoro")
+  voiceFile            filename in backend/audio/        (default: null, XTTS only)
+  translationProvider  "local" | "openai" | "claude" | "gemini" (default: "local")
+  apiKey               LLM API key string                (session-only, never stored)
+  apiModel             override model slug               (default: null → provider default)
+  audioPromptPath      (optional, ignored): legacy field; Kokoro uses preset voices only
 """
 
 import json
@@ -20,12 +25,14 @@ from enum import Enum, auto
 from fastapi import WebSocket, WebSocketDisconnect
 
 from .languages import QWEN_LANGUAGES, WHISPER_LANGUAGES
+from .llm_translator import VALID_PROVIDERS
 from .pipeline import handle_turn
 from .protocol import ErrorMsg, StatusMsg
 
 logger = logging.getLogger(__name__)
 
 VALID_ENGINES = {"whisper", "qwen3-asr"}
+VALID_TTS_ENGINES = {"kokoro", "xtts"}
 
 
 class _State(Enum):
@@ -42,16 +49,27 @@ async def session_endpoint(ws: WebSocket) -> None:
     audio_chunks: list[bytes] = []
 
     # Per-turn settings (captured from each 'start' message)
-    turn_engine: str = "whisper"
+    turn_engine: str = "qwen3-asr"
     turn_source_lang: str = "es"
     turn_target_lang: str = "en"
-    turn_audio_prompt: str | None = None
+    turn_tts_engine: str = "kokoro"
+    turn_voice_file: str | None = None
+    turn_translation_provider: str = "local"
+    turn_api_key: str | None = None
+    turn_api_model: str | None = None
+    turn_audio_prompt: str | None = None  # legacy
 
     async def send_status(stage: str, message: str) -> None:
         await ws.send_text(StatusMsg(stage=stage, message=message).model_dump_json())  # type: ignore[arg-type]
 
     async def send_error(code: str, message: str) -> None:
         await ws.send_text(ErrorMsg(code=code, message=message).model_dump_json())
+
+    def _lang_label(code: str) -> str:
+        return (
+            WHISPER_LANGUAGES.get(code)
+            or QWEN_LANGUAGES.get(code, code)
+        )
 
     try:
         while True:
@@ -83,36 +101,56 @@ async def session_endpoint(ws: WebSocket) -> None:
                         )
                         continue
 
-                    # Parse per-turn settings (with validation + sane defaults)
-                    engine = payload.get("engine", "whisper")
+                    # Validate engine
+                    engine = payload.get("engine", "qwen3-asr")
                     if engine not in VALID_ENGINES:
-                        await send_error("BAD_ENGINE", f"Unknown engine: '{engine}'.")
+                        await send_error("BAD_ENGINE", f"Unknown STT engine: '{engine}'.")
                         continue
 
-                    turn_engine      = engine
-                    turn_source_lang = payload.get("sourceLang", "es") or "es"
-                    turn_target_lang = payload.get("targetLang", "en") or "en"
-                    turn_audio_prompt = payload.get("audioPromptPath") or None
+                    # Validate TTS engine
+                    tts_engine = payload.get("ttsEngine", "kokoro")
+                    if tts_engine not in VALID_TTS_ENGINES:
+                        await send_error("BAD_TTS_ENGINE", f"Unknown TTS engine: '{tts_engine}'.")
+                        continue
+
+                    # Validate translation provider
+                    translation_provider = payload.get("translationProvider", "local")
+                    if translation_provider not in (VALID_PROVIDERS | {"local"}):
+                        await send_error(
+                            "BAD_PROVIDER",
+                            f"Unknown translation provider: '{translation_provider}'.",
+                        )
+                        continue
+
+                    turn_engine               = engine
+                    turn_source_lang          = payload.get("sourceLang", "es") or "es"
+                    turn_target_lang          = payload.get("targetLang", "en") or "en"
+                    turn_tts_engine           = tts_engine
+                    turn_voice_file           = payload.get("voiceFile") or None
+                    turn_translation_provider = translation_provider
+                    turn_api_key              = payload.get("apiKey") or None
+                    turn_api_model            = payload.get("apiModel") or None
+                    turn_audio_prompt         = payload.get("audioPromptPath") or None
 
                     audio_chunks.clear()
                     state = _State.RECORDING
-                    engine_name = {"qwen3-asr": "Qwen3-ASR", "whisper": "Whisper"}[engine]
-                    src_lm = WHISPER_LANGUAGES.get(turn_source_lang) or QWEN_LANGUAGES.get(
-                        turn_source_lang, turn_source_lang
-                    )
-                    tgt_lm = WHISPER_LANGUAGES.get(turn_target_lang) or QWEN_LANGUAGES.get(
-                        turn_target_lang, turn_target_lang
-                    )
+
+                    engine_label = {"qwen3-asr": "Qwen3-ASR", "whisper": "Whisper"}[engine]
+                    tts_label = "Kokoro" if tts_engine == "kokoro" else f"XTTS-v2 (voice: {turn_voice_file or 'none'})"
+                    provider_label = translation_provider if translation_provider != "local" else "Local (NLLB/Whisper)"
+                    src_lm = _lang_label(turn_source_lang)
+                    tgt_lm = _lang_label(turn_target_lang)
+
                     plan = (
-                        f"Listening to your microphone — expect {engine_name}: "
-                        f"speech [{src_lm}] → transcript text; "
-                        f"then pipeline output text & audio in [{tgt_lm}] "
-                        f"(text in chat first, then Kokoro audio)."
+                        f"Listening — {engine_label}: speech [{src_lm}] → transcript; "
+                        f"translate [{provider_label}] → [{tgt_lm}]; "
+                        f"TTS: {tts_label}."
                     )
                     await send_status("recording", plan)
                     logger.info(
-                        "Recording started. engine=%s src=%s tgt=%s prompt=%s",
-                        turn_engine, turn_source_lang, turn_target_lang, turn_audio_prompt,
+                        "Recording started. engine=%s src=%s tgt=%s tts=%s voice=%s provider=%s",
+                        turn_engine, turn_source_lang, turn_target_lang,
+                        turn_tts_engine, turn_voice_file, turn_translation_provider,
                     )
 
                 elif msg_type == "stop":
@@ -134,6 +172,11 @@ async def session_endpoint(ws: WebSocket) -> None:
                         engine=turn_engine,
                         source_lang=turn_source_lang,
                         target_lang=turn_target_lang,
+                        tts_engine=turn_tts_engine,
+                        voice_file=turn_voice_file,
+                        translation_provider=turn_translation_provider,
+                        api_key=turn_api_key,
+                        api_model=turn_api_model,
                         audio_prompt_path=turn_audio_prompt,
                     )
                     state = _State.IDLE
@@ -141,7 +184,10 @@ async def session_endpoint(ws: WebSocket) -> None:
                 elif msg_type == "cancel":
                     audio_chunks.clear()
                     state = _State.IDLE
-                    await send_status("done", "Cancelled — no transcript, translation, or playback for this turn.")
+                    await send_status(
+                        "done",
+                        "Cancelled — no transcript, translation, or playback for this turn.",
+                    )
                     logger.info("Turn cancelled by client.")
 
                 else:

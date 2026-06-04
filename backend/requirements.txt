@@ -19,6 +19,9 @@ kokoro>=0.9.4
 
 python-multipart>=0.0.9
 
+# Async HTTP client — used by the LLM API translation providers (Claude/OpenAI/Gemini)
+httpx>=0.27.0
+
 # NLLB translation (after Qwen ASR)
 
 transformers>=4.45.0

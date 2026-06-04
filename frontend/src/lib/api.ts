@@ -1,5 +1,12 @@
 const BASE = 'http://127.0.0.1:8000'
 
+export async function fetchAudioPrompts(): Promise<string[]> {
+  const res = await fetch(`${BASE}/audio-prompts`)
+  if (!res.ok) throw new Error('Failed to load audio files')
+  const data = await res.json()
+  return data.files as string[]
+}
+
 export async function fetchCurrentModel(): Promise<string> {
   const res = await fetch(`${BASE}/health`)
   if (!res.ok) throw new Error('Failed to reach backend')

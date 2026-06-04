@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Settings } from 'lucide-react'
+import { Settings, Sun, Moon } from 'lucide-react'
 import clsx from 'clsx'
 import { nanoid } from './lib/nanoid'
 import { fetchCurrentModel } from './lib/api'
@@ -8,6 +8,7 @@ import { useRecorder } from './hooks/useRecorder'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useHotkey } from './hooks/useHotkey'
 import { useAudioPlayer } from './hooks/useAudioPlayer'
+import { useTheme } from './hooks/useTheme'
 import { ChatPane } from './components/ChatPane'
 import { MicButton, type MicState } from './components/MicButton'
 import { StatusBar } from './components/StatusBar'
@@ -18,9 +19,14 @@ import type { AudioMeta, ServerMessage, Stage } from './lib/protocol'
 
 const DEFAULT_SETTINGS: AppSettings = {
   modelSize: 'small',
-  engine: 'qwen3-asr',   // default: Qwen3-ASR (loaded on startup)
-  sourceLang: 'es',      // speak Spanish
-  targetLang: 'en',      // output English (via NLLB translation after Qwen ASR)
+  engine: 'qwen3-asr',
+  sourceLang: 'es',
+  targetLang: 'en',
+  ttsEngine: 'kokoro',
+  voiceFile: null,
+  translationProvider: 'local',
+  apiKey: '',
+  apiModel: '',
 }
 
 export default function App() {
@@ -32,22 +38,20 @@ export default function App() {
   const [settingsOpen,  setSettingsOpen]  = useState(false)
   const [appSettings,   setAppSettings]   = useState<AppSettings>(DEFAULT_SETTINGS)
 
-  // Track active message IDs and pending audio metadata
   const activeBotId      = useRef<string | null>(null)
   const activeUserId     = useRef<string | null>(null)
   const pendingAudioMeta = useRef<AudioMeta | null>(null)
 
-  // Sync whisper model size from backend on mount (in case backend uses different size)
+  const { theme, toggle: toggleTheme } = useTheme()
+
   useEffect(() => {
     fetchCurrentModel()
       .then(size => setAppSettings(s => ({ ...s, modelSize: size })))
-      .catch(() => { /* backend not up yet – use defaults */ })
+      .catch(() => {})
   }, [])
 
-  // ── Audio player ──────────────────────────────────────────────────────────
   const { onAudioMeta, onAudioChunk, onAudioEnd, drainRecording } = useAudioPlayer()
 
-  // ── WebSocket message handler ─────────────────────────────────────────────
   const handleServerMessage = useCallback((msg: ServerMessage) => {
     switch (msg.type) {
       case 'status': {
@@ -55,7 +59,6 @@ export default function App() {
         setStatusMsg(msg.message)
         break
       }
-
       case 'transcript_delta': {
         const botId = activeBotId.current
         if (!botId) {
@@ -72,7 +75,6 @@ export default function App() {
         }
         break
       }
-
       case 'transcript_final': {
         const botId = activeBotId.current
         if (botId) {
@@ -82,13 +84,11 @@ export default function App() {
         }
         break
       }
-
       case 'audio_meta': {
         pendingAudioMeta.current = msg
         onAudioMeta(msg)
         break
       }
-
       case 'audio_end': {
         onAudioEnd()
         const botId = activeBotId.current
@@ -109,7 +109,6 @@ export default function App() {
         setStatusMsg('')
         break
       }
-
       case 'error': {
         setError(`[${msg.code}] ${msg.message}`)
         activeBotId.current = null
@@ -124,13 +123,11 @@ export default function App() {
     onAudioChunk(data)
   }, [onAudioChunk])
 
-  // ── WebSocket ─────────────────────────────────────────────────────────────
   const { status: wsStatus, sendJson, sendBinary } = useWebSocket(
     handleServerMessage,
     handleBinary,
   )
 
-  // ── Recorder ──────────────────────────────────────────────────────────────
   const recorder = useRecorder()
 
   const handleStartRecording = useCallback(async () => {
@@ -161,6 +158,11 @@ export default function App() {
       engine: appSettings.engine,
       sourceLang: appSettings.sourceLang,
       targetLang: appSettings.targetLang,
+      ttsEngine: appSettings.ttsEngine,
+      voiceFile: appSettings.voiceFile || null,
+      translationProvider: appSettings.translationProvider,
+      apiKey: appSettings.apiKey || null,
+      apiModel: appSettings.apiModel || null,
     })
 
     await recorder.start((blob) => {
@@ -170,7 +172,6 @@ export default function App() {
 
   const handleStopRecording = useCallback(() => {
     recorder.stop()
-
     const userId = activeUserId.current
     if (userId) {
       setMessages(prev =>
@@ -180,60 +181,90 @@ export default function App() {
       )
       activeUserId.current = null
     }
-
     sendJson({ type: 'stop' })
     setMicState('processing')
     setStage('received')
     setStatusMsg('Sending audio…')
   }, [recorder, sendJson])
 
-  // ── Hotkey ────────────────────────────────────────────────────────────────
   const { handlers } = useHotkey(
     handleStartRecording,
     handleStopRecording,
     micState === 'idle' || micState === 'recording',
   )
 
-  return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto border-x border-white/6 relative overflow-hidden">
+  const langs = appSettings.engine === 'whisper' ? WHISPER_LANGUAGES : QWEN_LANGUAGES
+  const srcLabel = langs[appSettings.sourceLang] ?? appSettings.sourceLang
+  const tgtLabel = langs[appSettings.targetLang] ?? appSettings.targetLang
+  const sameLang = appSettings.sourceLang === appSettings.targetLang
 
+  return (
+    <div
+      className="flex flex-col h-full max-w-2xl mx-auto relative overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
       {/* Header */}
-      <header className="flex items-center gap-3 px-5 py-3.5 border-b border-white/6 bg-white/2 backdrop-blur-sm shrink-0">
-        <span className="text-lg">🎙️</span>
-        <div>
-          <h1 className="text-sm font-semibold text-white/85 tracking-tight leading-tight">VozShift</h1>
-          <p className="text-[10px] text-white/30 leading-tight">Spanish → English</p>
+      <header
+        className="flex items-center gap-3 px-5 py-3.5 shrink-0 sku-raised"
+        style={{ borderBottom: '1px solid var(--border-outer)' }}
+      >
+        {/* Logo pill */}
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full sku-inset"
+        >
+          <span className="text-base">🎙️</span>
+          <div>
+            <h1
+              className="text-sm font-bold tracking-tight leading-tight"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              VozShift
+            </h1>
+            <p className="text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>
+              Voice interpreter
+            </p>
+          </div>
         </div>
 
         {/* Language pair pill */}
-        {(() => {
-          const langs = appSettings.engine === 'whisper' ? WHISPER_LANGUAGES : QWEN_LANGUAGES
-          const src = langs[appSettings.sourceLang] ?? appSettings.sourceLang
-          const tgt = langs[appSettings.targetLang] ?? appSettings.targetLang
-          const samelang = appSettings.sourceLang === appSettings.targetLang
-          return (
-            <span className="ml-2 hidden sm:inline text-[11px] text-white/40 bg-white/5 border border-white/8 rounded-full px-2.5 py-0.5 shrink-0">
-              {src}{samelang ? '' : ` → ${tgt}`}
-            </span>
-          )
-        })()}
+        <span
+          className="hidden sm:inline text-[11px] px-2.5 py-1 rounded-full sku-raised"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          {srcLabel}{sameLang ? '' : ` → ${tgtLabel}`}
+        </span>
 
-        {/* Engine + model pill */}
-        <span className="ml-auto text-[11px] text-violet-400/60 bg-violet-500/8 border border-violet-500/15 rounded-full px-2.5 py-0.5 shrink-0">
+        {/* Engine pill */}
+        <span
+          className="ml-auto text-[11px] px-2.5 py-1 rounded-full sku-inset font-mono"
+          style={{ color: 'var(--accent)' }}
+        >
           {appSettings.engine === 'whisper'
             ? `whisper/${appSettings.modelSize}`
             : 'qwen3-asr'}
         </span>
 
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className={clsx('p-2 rounded-xl transition-all sku-raised active:sku-press')}
+          style={{ color: 'var(--text-secondary)' }}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          title={`${theme === 'dark' ? 'Light' : 'Dark'} theme`}
+        >
+          {theme === 'dark'
+            ? <Sun className="size-4" />
+            : <Moon className="size-4" />}
+        </button>
+
         {/* Settings button */}
         <button
           onClick={() => setSettingsOpen(s => !s)}
           className={clsx(
-            'p-2 rounded-xl transition-all border',
-            settingsOpen
-              ? 'bg-violet-600/25 border-violet-500/40 text-violet-300'
-              : 'border-transparent text-white/35 hover:text-white/70 hover:bg-white/6',
+            'p-2 rounded-xl transition-all',
+            settingsOpen ? 'sku-inset' : 'sku-raised active:sku-press',
           )}
+          style={{ color: settingsOpen ? 'var(--accent)' : 'var(--text-secondary)' }}
           aria-label="Open settings"
         >
           <Settings className="size-4" />
@@ -243,8 +274,11 @@ export default function App() {
       {/* Chat */}
       <ChatPane messages={messages} />
 
-      {/* Mic button */}
-      <div className="flex justify-center py-4 border-t border-white/6 bg-white/1 backdrop-blur-sm shrink-0">
+      {/* Mic button row */}
+      <div
+        className="flex justify-center py-4 shrink-0 sku-raised"
+        style={{ borderTop: '1px solid var(--border-outer)' }}
+      >
         <MicButton
           micState={micState}
           handlers={handlers}
@@ -255,7 +289,7 @@ export default function App() {
       {/* Status bar */}
       <StatusBar stage={stage} message={statusMsg} wsStatus={wsStatus} />
 
-      {/* Settings panel (absolute overlay within the container) */}
+      {/* Settings panel */}
       <SettingsPanel
         open={settingsOpen}
         settings={appSettings}

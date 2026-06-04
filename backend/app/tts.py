@@ -13,7 +13,10 @@ import os
 
 import numpy as np
 
-from kokoro import KPipeline
+# KPipeline is imported lazily inside _get_pipeline() so that Windows +
+# uvicorn --reload can spawn the worker without the multiprocessing bootstrap error.
+# The type annotation dict[str, KPipeline] is safe as a string thanks to
+# `from __future__ import annotations` at the top of this file.
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +52,9 @@ class TTS:
         env_key = _VOICE_ENV_PREFIX + lang_code.upper()
         return os.environ.get(env_key, default_voice)
 
-    def _get_pipeline(self, lang_code: str) -> KPipeline:
+    def _get_pipeline(self, lang_code: str):
         if lang_code not in self._pipelines:
+            from kokoro import KPipeline  # noqa: PLC0415
             print(f"[TTS] Loading Kokoro KPipeline(lang_code={lang_code!r}) …")
             self._pipelines[lang_code] = KPipeline(lang_code=lang_code)
         return self._pipelines[lang_code]

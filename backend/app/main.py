@@ -23,8 +23,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .languages import WHISPER_LANGUAGES, QWEN_LANGUAGES, VALID_WHISPER_SIZES
+from .llm_translator import PROVIDER_DEFAULTS, VALID_PROVIDERS
 from .stt import stt
 from .tts import tts
+from .tts_clone import clone_tts
 from .translator import NLLB_MODEL_NAME, TRANSLATION_PAIRS
 from .ws import session_endpoint
 
@@ -111,6 +113,38 @@ async def get_languages() -> dict:
         "qwen3-asr": QWEN_LANGUAGES,
         "translation_model": NLLB_MODEL_NAME,
         "translation_pairs": TRANSLATION_PAIRS,
+    }
+
+
+@app.get("/providers")
+async def get_providers() -> dict:
+    """Return available translation providers and TTS engines with their defaults."""
+    return {
+        "translation_providers": {
+            "local": {
+                "label": "Local (NLLB-200 / Whisper translate)",
+                "requires_api_key": False,
+            },
+            **{
+                name: {
+                    "label": name.title(),
+                    "default_model": cfg["model"],
+                    "requires_api_key": True,
+                }
+                for name, cfg in PROVIDER_DEFAULTS.items()
+            },
+        },
+        "tts_engines": {
+            "kokoro": {
+                "label": "Kokoro-82M (preset voices, fast)",
+                "requires_voice_file": False,
+            },
+            "xtts": {
+                "label": "XTTS-v2 (voice cloning, needs reference WAV)",
+                "requires_voice_file": True,
+                "available": clone_tts.is_available(),
+            },
+        },
     }
 
 

@@ -55,6 +55,9 @@ export type ServerMessage =
 
 // ── Client → Server ───────────────────────────────────────────────────────────
 
+export type TtsEngine = 'kokoro' | 'xtts'
+export type TranslationProvider = 'local' | 'openai' | 'claude' | 'gemini'
+
 export interface StartMsg {
   type: 'start'
   mime: string
@@ -62,7 +65,16 @@ export interface StartMsg {
   engine: 'whisper' | 'qwen3-asr'
   sourceLang: string
   targetLang: string
-  audioPromptPath?: string | null
+  /** TTS engine to use for this turn */
+  ttsEngine: TtsEngine
+  /** Reference voice filename in backend/audio/ (XTTS only) */
+  voiceFile?: string | null
+  /** Translation provider */
+  translationProvider: TranslationProvider
+  /** LLM API key — sent per-session, never stored server-side */
+  apiKey?: string | null
+  /** Override LLM model slug (null → use provider default) */
+  apiModel?: string | null
 }
 
 export interface StopMsg {

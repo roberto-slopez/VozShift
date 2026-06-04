@@ -17,19 +17,19 @@ export function MicButton({ micState, handlers, disabled = false }: Props) {
 
   return (
     <div className="relative flex items-center justify-center p-4">
-      {/* Outer pulse ring – visible while recording */}
+      {/* Outer pulse ring while recording */}
       {isRecording && (
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full border-2 border-red-400/50 animate-ring-pulse pointer-events-none"
+          className="absolute inset-0 rounded-full border-2 border-red-400/60 animate-ring-pulse pointer-events-none"
         />
       )}
 
-      {/* Spinning arc – visible while processing */}
+      {/* Spinning arc while processing */}
       {isProcessing && (
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full border-2 border-t-violet-400 border-transparent animate-ring-spin pointer-events-none"
+          className="absolute inset-0 rounded-full border-2 border-t-[var(--accent)] border-transparent animate-ring-spin pointer-events-none"
         />
       )}
 
@@ -37,35 +37,43 @@ export function MicButton({ micState, handlers, disabled = false }: Props) {
         {...handlers}
         disabled={disabled}
         aria-label={
-          isRecording  ? 'Stop recording (Space / click)'  :
+          isRecording  ? 'Stop recording (Space / click)' :
           isProcessing ? 'Processing…' :
                          'Start recording (Space / click)'
         }
         className={clsx(
           'relative z-10 w-20 h-20 rounded-full flex items-center justify-center',
           'transition-all duration-150 outline-none select-none',
-          'focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f13]',
+          'focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2',
           {
-            // idle
-            'bg-violet-600 hover:bg-violet-500 active:scale-95 shadow-lg shadow-violet-900/50':
-              !isActive && !disabled,
-            // recording
-            'bg-red-500 hover:bg-red-400 active:scale-95 shadow-lg shadow-red-900/60':
-              isRecording,
-            // processing
-            'bg-violet-800/60 cursor-not-allowed': isProcessing,
-            // disabled
-            'bg-white/5 cursor-not-allowed': disabled && !isActive,
+            // idle — raised embossed button
+            'active:sku-press': !isActive && !disabled,
+            // recording — inset pressed with red pulse
+            'animate-mic-pulse': isRecording,
           },
+          !isActive && !disabled && 'sku-raised',
+          isRecording && 'sku-inset',
+          isProcessing && [
+            'bg-[var(--bg-sunken)] opacity-70 cursor-not-allowed',
+            'shadow-[var(--shadow-inset)]',
+          ],
+          disabled && !isActive && 'opacity-40 cursor-not-allowed',
         )}
+        style={
+          isRecording
+            ? { background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)' }
+            : !isActive && !disabled
+            ? { background: `linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%)` }
+            : undefined
+        }
       >
-        {isRecording  && <Square className="size-7 text-white" />}
-        {isProcessing && <Loader2 className="size-7 text-violet-300 animate-spin" />}
-        {!isActive    && <Mic    className="size-7 text-white" />}
+        {isRecording  && <Square  className="size-7 text-white drop-shadow" />}
+        {isProcessing && <Loader2 className="size-7 text-[var(--accent)] animate-spin" />}
+        {!isActive    && <Mic     className="size-7 text-white drop-shadow" />}
       </button>
 
       {/* Hint label */}
-      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-white/25 whitespace-nowrap pointer-events-none">
+      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-[color:var(--text-muted)] whitespace-nowrap pointer-events-none">
         {isRecording  ? 'release or tap to stop' :
          isProcessing ? 'processing…' :
                         'Space / tap'}

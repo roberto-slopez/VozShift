@@ -1,0 +1,23 @@
+# XTTS-v2 voice cloning — optional, install AFTER base requirements.txt
+#
+# Python 3.10–3.14, PyTorch 2.2+ required.
+# XTTS weights are released under the Coqui Public Model License (CPML).
+# Non-commercial personal/research use only — see https://coqui.ai/cpml
+#
+# ── Install order (inside the same venv) ──────────────────────────────────────
+# 1. Install torch + torchaudio first (already done by requirements.txt).
+#    If you use the CUDA build, reinstall with the correct index URL:
+#      pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+#
+# 2. Install this file:
+#      pip install -r backend/requirements-clone.txt
+#
+# Dependency conflict note:
+#   coqui-tts pulls its own transformers / tokenizers pins. If you hit a
+#   conflict with the qwen-asr / kokoro pins in requirements.txt, create a
+#   second venv (clone-venv) and run ONLY the XTTS worker from it.
+#   The lazy-import guard in backend/app/tts_clone.py handles ImportError
+#   gracefully — the rest of the app continues to work without cloning.
+# ─────────────────────────────────────────────────────────────────────────────
+
+coqui-tts>=0.27.5

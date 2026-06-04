@@ -13,15 +13,23 @@ export function ChatPane({ messages }: Props) {
   }, [messages])
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scroll-smooth" style={{ scrollbarGutter: 'stable' }}>
+    <div
+      className="flex-1 overflow-y-auto px-4 py-6 space-y-4 scroll-smooth sku-inset rounded-none"
+      style={{ scrollbarGutter: 'stable' }}
+    >
       {messages.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-full text-center select-none pointer-events-none">
-          <p className="text-4xl mb-4">🎙️</p>
-          <p className="text-white/30 text-sm">
-            Hold <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-xs">Space</kbd>{' '}
+        <div className="flex flex-col items-center justify-center h-full text-center select-none pointer-events-none gap-3">
+          <div className="sku-raised rounded-full w-16 h-16 flex items-center justify-center text-3xl">
+            🎙️
+          </div>
+          <p className="text-[color:var(--text-muted)] text-sm">
+            Hold{' '}
+            <kbd className="px-1.5 py-0.5 rounded sku-raised font-mono text-xs text-[color:var(--text-secondary)]">
+              Space
+            </kbd>{' '}
             or tap the button to start speaking.
           </p>
-          <p className="text-white/20 text-xs mt-1">
+          <p className="text-[color:var(--text-muted)] text-xs opacity-70">
             Short tap = toggle &nbsp;·&nbsp; Hold = hold-to-talk
           </p>
         </div>

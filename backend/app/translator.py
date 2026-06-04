@@ -11,8 +11,9 @@ used for the Qwen3-ASR path when source_lang != target_lang.
 
 from __future__ import annotations
 
-import torch
-from transformers import pipeline as hf_pipeline
+# torch and transformers are imported lazily inside _ensure_loaded() so that
+# Windows + uvicorn --reload can spawn the worker process without hitting the
+# "attempt to start a new process before bootstrapping" multiprocessing error.
 
 NLLB_MODEL_NAME = "facebook/nllb-200-distilled-600M"
 
@@ -68,6 +69,9 @@ class Translator:
     def _ensure_loaded(self) -> None:
         if self._pipe is not None:
             return
+        import torch
+        from transformers import pipeline as hf_pipeline  # noqa: PLC0415
+
         print(f"[Translator] Loading {NLLB_MODEL_NAME} (~2.5 GB weights + cache)…")
         device = 0 if torch.cuda.is_available() else -1
         self._pipe = hf_pipeline(
