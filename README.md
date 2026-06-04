@@ -51,8 +51,21 @@ streamed live in the browser with a skeuomorphic light/dark UI.
 py -m pip install -r .\backend\requirements.txt
 
 # Start the server — first run downloads model weights
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 --app-dir .\backend
+py .\backend\run.py
 ```
+
+> **Windows note:** use the `run.py` launcher above rather than the bare
+> `uvicorn ... --reload` command. On Windows the reload worker is created with
+> multiprocessing **spawn**, which re-imports the `uvicorn.exe` entry point and
+> recursively starts another reloader — raising
+> *"An attempt has been made to start a new process before the current process
+> has finished its bootstrapping phase."* `run.py` guards the entry point with
+> `if __name__ == "__main__":`, which is the documented fix.
+>
+> If you prefer the raw command (e.g. on macOS/Linux where `fork` is used):
+> ```powershell
+> uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 --app-dir .\backend
+> ```
 
 Wait until you see:
 ```
